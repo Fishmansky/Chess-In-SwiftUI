@@ -13,8 +13,4 @@ struct DropViewDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         return true
     }
-    
-    func dropEntered(info: DropInfo) {
-        print(pos.getCoords())
-    }
 }

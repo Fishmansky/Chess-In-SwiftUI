@@ -27,9 +27,6 @@ struct Chessboard: View {
 
 struct Square: View {
     var coords: (Int, Int)
-    func getCoords() -> String {
-        return String(coords.0)+String(coords.1)
-    }
     
     func getColor() -> Color {
         if(coords.0 % 2 == 0) {
