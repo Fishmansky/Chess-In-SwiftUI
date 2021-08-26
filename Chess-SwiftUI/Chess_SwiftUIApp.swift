@@ -89,7 +89,7 @@ class Game: ObservableObject {
         return 0
     }
     
-    func getLocationByPiece(pieceId: Int) -> Int {
+    func getLocationByPieceID(pieceId: Int) -> Int {
         return GameState2[pieceId-1]
     }
     
@@ -103,6 +103,10 @@ class Game: ObservableObject {
         return Coord(a.file+b.file, a.rank+b.rank)
     }
     
+    func isPossibleMove(_ piece_cord: (Int, Int),_ move: (Int, Int),_ mltp: Int = 1) -> Bool {
+        return checkDestinationCord(Coord(move.0*mltp, move.1*mltp)) == 0
+    }
+    
     func showPossibleMoves2() -> Void {
         
         let moves = Pieces[ChosenPieceID-1].moves
@@ -112,14 +116,14 @@ class Game: ObservableObject {
         for move in moves {
             if(moveMultiplier()){
                 for x in 2...8{
-                    if (Holders[getHolderIDFromCoord(addToCoord(PieceCoords,move,x))].piece_ID == 0 && Holders[getHolderIDFromCoord(addToCoord(PieceCoords,move,x))].id != 999 ) {
+                    if (isPossibleMove(PieceCoords,move,x)) {
                         possibleHoldersIDs.append(getHolderIDFromCoord(addToCoord(PieceCoords,move,x)))
                     } else {
                         break
                     }
                 }
             } else {
-                if (Holders[getHolderIDFromCoord(addToCoord(PieceCoords,move))].piece_ID == 0 && Holders[getHolderIDFromCoord(addToCoord(PieceCoords,move))].id != 999){
+                if (isPossibleMove(PieceCoords, move)){
                     possibleHoldersIDs.append(getHolderIDFromCoord(addToCoord(PieceCoords,move)))
 
                 }

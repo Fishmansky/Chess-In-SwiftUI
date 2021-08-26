@@ -13,7 +13,6 @@
 		0489A7542663E4E0008880E1 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0489A7532663E4E0008880E1 /* Preview Assets.xcassets */; };
 		0489A75F2663E4E1008880E1 /* Chess_SwiftUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0489A75E2663E4E0008880E1 /* Chess_SwiftUITests.swift */; };
 		0489A76A2663E4E1008880E1 /* Chess_SwiftUIUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0489A7692663E4E1008880E1 /* Chess_SwiftUIUITests.swift */; };
-		0489A77B266419AC008880E1 /* DropDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0489A77A266419AC008880E1 /* DropDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,7 +45,6 @@
 		0489A7652663E4E1008880E1 /* Chess-SwiftUIUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Chess-SwiftUIUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		0489A7692663E4E1008880E1 /* Chess_SwiftUIUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chess_SwiftUIUITests.swift; sourceTree = "<group>"; };
 		0489A76B2663E4E1008880E1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		0489A77A266419AC008880E1 /* DropDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,7 +95,6 @@
 		0489A74B2663E4DE008880E1 /* Chess-SwiftUI */ = {
 			isa = PBXGroup;
 			children = (
-				0489A77A266419AC008880E1 /* DropDelegate.swift */,
 				0489A74C2663E4DE008880E1 /* Chess_SwiftUIApp.swift */,
 				0489A74E2663E4DE008880E1 /* ContentView.swift */,
 				0489A7502663E4E0008880E1 /* Assets.xcassets */,
@@ -263,7 +260,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				0489A74F2663E4DE008880E1 /* ContentView.swift in Sources */,
-				0489A77B266419AC008880E1 /* DropDelegate.swift in Sources */,
 				0489A74D2663E4DE008880E1 /* Chess_SwiftUIApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
