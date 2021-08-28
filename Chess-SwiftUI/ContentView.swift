@@ -89,6 +89,45 @@ struct HolderView: View, Hashable {
     }
 }
 
+struct PromotionView: View {
+    @EnvironmentObject var Game: Game
+    
+    var body: some View {
+        ZStack {
+            Color.gray.opacity(0.5)
+                //.ignoresSafeArea()
+            VStack {
+                Text("Promote to:")
+                Button(action: {
+                    Game.promoteTo(.Queen)
+                    Game.showPromotion.toggle()
+                }, label: {
+                    Text("Queen")
+                })
+                Button(action: {
+                    Game.promoteTo(.Rook)
+                    Game.showPromotion.toggle()
+                }, label: {
+                    Text("Rook")
+                })
+                Button(action: {
+                    Game.promoteTo(.Bishop)
+                    Game.showPromotion.toggle()
+                }, label: {
+                    Text("Bishop")
+                })
+                Button(action: {
+                    Game.promoteTo(.Knight)
+                    Game.showPromotion.toggle()
+                }, label: {
+                    Text("Knight")
+                })
+            }
+        }
+        .frame(width: 500, height: 420, alignment: .center)
+    }
+}
+
 struct PieceView: View {
     @EnvironmentObject var Game: Game
     @State var isTapped = false
@@ -123,7 +162,8 @@ struct PieceView: View {
 
 struct MovingView: View {
     @EnvironmentObject var Game: Game
-
+    @State var showPromotion = false
+    
     var body: some View {
         VStack{
             Button(action: { Game.set() }, label: {
@@ -188,6 +228,9 @@ struct MovingView: View {
                             }
                         }
                     }
+                }
+                if(Game.showPromotion){
+                    PromotionView()
                 }
             }
         }

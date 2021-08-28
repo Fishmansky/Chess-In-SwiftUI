@@ -54,6 +54,8 @@ class Game: ObservableObject {
     @Published var ChosenHolder = 0
     @Published var PossibleMoves = [Int]()
     @Published var Threats = [Int]()
+    @Published var showPromotion = false
+    
     
     func set() -> Void {
         for index in 0..<GameState.count {
@@ -77,6 +79,8 @@ class Game: ObservableObject {
         GameState[ChosenPieceID-1] = ChosenHolder
         //put Piece on new Holder
         Holders[ChosenHolder].piece_ID = ChosenPieceID
+        //pawn promotion check
+        promotionCheck()
         //reset chosen Piece and holder
         ChosenPieceID = 0
         ChosenHolder = 0
@@ -156,23 +160,30 @@ class Game: ObservableObject {
         return Pieces[p_ID-1].Piece_state == .threatened
     }
     
-    func finalCheck() -> Void {
-        var loc = getLocationByPieceID(ChosenPieceID)
-        
+    func getPromotedPawn()-> Int {
+        for p_ID in 0..<Pieces.count {
+            if Pieces[p_ID].Piece_state == .promotion{
+                //Piece ID = array index + 1
+                return p_ID + 1
+            }
+        }
+        return 999
+    }
+    
+    func promoteTo(_ p_T: PieceTypes) -> Void {
+        if getPromotedPawn() != 999 {
+            Pieces[getPromotedPawn()-1].piece_type = p_T
+            Pieces[getPromotedPawn()-1].Piece_state = .free
+        }
+    }
+    
+    func promotionCheck() -> Void {
         if Pieces[ChosenPieceID-1].piece_type == .bPawn && Coordinates[getLocationByPieceID(ChosenPieceID)].rank ==  0 {
             Pieces[ChosenPieceID-1].Piece_state = .promotion
-            Pieces[ChosenPieceID-1].promoteTo_dev()
-            Pieces[ChosenPieceID-1].Piece_state = .free
-            let moves = Pieces[ChosenPieceID-1].moves
-            let type = Pieces[ChosenPieceID-1].piece_type
-            
+            showPromotion = true
         } else if Pieces[ChosenPieceID-1].piece_type == .wPawn && Coordinates[getLocationByPieceID(ChosenPieceID)].rank ==  7 {
             Pieces[ChosenPieceID-1].Piece_state = .promotion
-            Pieces[ChosenPieceID-1].promoteTo_dev()
-            Pieces[ChosenPieceID-1].Piece_state = .free
-            let moves = Pieces[ChosenPieceID-1].moves
-            let type = Pieces[ChosenPieceID-1].piece_type
-
+            showPromotion = true
         }
         ChosenPieceID = 0
     }
@@ -181,7 +192,6 @@ class Game: ObservableObject {
     func checkAttack(_ p_ID: Int) -> Void {
         if(isThreatened(p_ID)){
             //remove piece from its initial holder
-            var a = Holders[getLocationByPieceID(ChosenPieceID)].piece_ID
             Holders[getLocationByPieceID(ChosenPieceID)].piece_ID = 0
             //update piece location in gamestate
             GameState[ChosenPieceID-1] = getLocationByPieceID(p_ID)
@@ -189,7 +199,7 @@ class Game: ObservableObject {
             Holders[getLocationByPieceID(p_ID)].piece_ID = ChosenPieceID
             //place the attacked piece on invisible holder
             GameState[p_ID-1] = 999
-            finalCheck()
+            promotionCheck()
             hidePossibileMoves()
             isPicked = false
         }
@@ -201,19 +211,26 @@ class Game: ObservableObject {
         switch Pieces[ChosenPieceID-1].piece_type {
         case .wPawn:
             if getHolderCoordsByPiece(ChosenPieceID).rank < 2 {
-                return Pieces[ChosenPieceID-1].moves+[(2,0)]
+                return Moves.wpawn+[(2,0)]
             } else {
-                return Pieces[ChosenPieceID-1].moves
+                return Moves.wpawn
             }
         case .bPawn:
             if getHolderCoordsByPiece(ChosenPieceID).rank > 5 {
-                return Pieces[ChosenPieceID-1].moves+[(-2,0)]
+                return Moves.bpawn+[(-2,0)]
             } else {
-                return Pieces[ChosenPieceID-1].moves
-            }
-        default:
-            //return any other piece moveset
-            return Pieces[ChosenPieceID-1].moves
+                return Moves.bpawn
+                }
+            case .Knight:
+                return Moves.knight
+            case .Bishop:
+                return Moves.bishop
+            case .Rook:
+                return Moves.rook
+            case .Queen:
+                return Moves.queen
+            case .King:
+                return Moves.king
         }
     }
     
@@ -310,44 +327,22 @@ class Piece: ObservableObject {
     //Piece ID != 0 as 0 is reserved for free space on holders
     private var ID: Int
     private var COLOR: Int
-    public var piece_type: PieceTypes
+    private var Piece_type: PieceTypes
     
-    public var moves: [(Int, Int)]
     private var piece_state: PlayState = .free
     
     public var Piece_state: PlayState { get { return piece_state} set { piece_state = newValue } }
     public var id: Int { get { return ID } }
     public var color: Int { get { return COLOR } }
-
-    func promoteTo(_ p_T: PieceTypes) {
-        piece_type = p_T
-    }
     
-    func promoteTo_dev() {
-        self.piece_type = .Queen
-        self.moves = Moves.queen
+    public var piece_type: PieceTypes {
+        get {return Piece_type} set {Piece_type = newValue}
     }
     
     init(_ i: Int,_ c: Int, _ p_t: PieceTypes){
         ID = i
         COLOR = c
-        self.piece_type = p_t
-        switch p_t {
-        case .wPawn:
-            moves = Moves.wpawn;
-        case .bPawn:
-            moves = Moves.bpawn;
-        case .Knight:
-            moves = Moves.knight;
-        case .Bishop:
-            moves = Moves.bishop;
-        case .Rook:
-            moves = Moves.rook;
-        case .Queen:
-            moves = Moves.queen;
-        case .King:
-            moves = Moves.king;
-        }
+        Piece_type = p_t
     }
     
     static func == (lhs: Piece, rhs: Piece) -> Bool {
