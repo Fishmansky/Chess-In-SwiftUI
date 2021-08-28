@@ -96,7 +96,7 @@ struct PieceView: View {
     var body: some View {
         ZStack{
             Circle().frame(width: isTapped ? 42:36 , height: isTapped ? 42:36, alignment: .center)
-                .foregroundColor(.green)
+                .foregroundColor(Game.Pieces[piece_ID-1].color == 0 ? .green : .blue)
                 .onTapGesture {
                     //if there is no piece picked yet then pick this one
                     if(!Game.isPicked){
@@ -109,6 +109,8 @@ struct PieceView: View {
                         isTapped = false
                         Game.isPicked = false
                         Game.hidePossibileMoves()
+                    } else if (Game.isPicked && Game.ChosenPieceID != self.piece_ID) {
+                        Game.checkAttack(piece_ID)
                     }
                 }
             Text(piece_ID.description)
@@ -203,8 +205,6 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
-            ContentView()
-            ContentView()
             ContentView()
         }
     }
