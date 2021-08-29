@@ -72,6 +72,8 @@ struct HolderView: View, Hashable {
                 .foregroundColor(Color.white.opacity(0.01))
                 .frame(width: 46, height: 46)
                 .background(Color.white.opacity(0))
+            Text(id.description)
+                .foregroundColor(.red).opacity(0.7)
             if(piece_ID > 0 ){
                 PieceView(piece_ID: piece_ID)
             } else if (piece_ID == -1) {
