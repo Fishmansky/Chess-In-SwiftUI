@@ -96,7 +96,7 @@ struct PromotionView: View {
         ZStack {
             Color.gray.opacity(0.5)
                 //.ignoresSafeArea()
-            VStack {
+            VStack(alignment: .center, spacing: 5) {
                 Text("Promote to:")
                 Button(action: {
                     Game.promoteTo(.Queen)
@@ -122,7 +122,9 @@ struct PromotionView: View {
                 }, label: {
                     Text("Knight")
                 })
-            }
+            }.frame(width: 140, height: 140, alignment: .center)
+            .background(Color.white)
+            .cornerRadius(5)
         }
         .frame(width: 500, height: 420, alignment: .center)
     }
@@ -149,7 +151,7 @@ struct PieceView: View {
                         Game.isPicked = false
                         Game.hidePossibileMoves()
                     } else if (Game.isPicked && Game.ChosenPieceID != self.piece_ID) {
-                        Game.checkAttack(piece_ID)
+                        Game.Attack(piece_ID)
                     }
                 }
             Text(piece_ID.description)
