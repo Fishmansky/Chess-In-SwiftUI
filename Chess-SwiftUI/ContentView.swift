@@ -146,7 +146,7 @@ struct PieceView: View {
                         isTapped.toggle()
                         Game.ChosenPieceID = piece_ID
                         Game.isPicked = true
-                        Game.showPossibleMoves()
+                        Game.showPossibleMoves2()
                     //if this piece is pickedshowPossibleMoves
                     } else if (Game.isPicked && Game.ChosenPieceID == self.piece_ID) {
                         isTapped = false

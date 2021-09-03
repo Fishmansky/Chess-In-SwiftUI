@@ -425,8 +425,17 @@ class Game: ObservableObject {
         }
     }
     
-    func detectPinnedPiece() -> Bool {
-        //returns true if piece protects the king
+    func isPawn() -> Bool {
+        let pawnColor = Pieces[ChosenPieceID-1].color
+        if pawnColor == 1 {
+            if Pieces[ChosenPieceID-1].piece_type == .wPawn {
+                return true
+            }
+        } else {
+            if Pieces[ChosenPieceID-1].piece_type == .bPawn {
+                return true
+            }
+        }
         return false
     }
     
@@ -458,7 +467,27 @@ class Game: ObservableObject {
     }
     
     func canSaveKing() -> Void {
-        
+        //function should rpovide possible ways to get king out of check without moving it like:
+        // - holders that ca be taken be pieces to stand on the line of check
+        // - pieces that can capture the enemy piece that is checking the king
+    }
+    
+    func showPossiblePawnMoves2() -> Void {
+        let p_s = Pieces[ChosenPieceID-1].piece_state
+        switch p_s {
+        case .free, .threatened, .protects:
+            showPossiblePawnMoves()
+            break
+        case .is_threatening, .is_pinning, .promotion, .gives_check, .en_passantable:
+            //no moves
+            break
+        case .in_check:
+            canSaveKing()
+            break
+        case .pinned, .double_check, .checkmate:
+            //no moves
+            break;
+        }
     }
     
     func showPossiblePawnMoves() -> Void {
@@ -490,9 +519,11 @@ class Game: ObservableObject {
                 }
             } else {
                 let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
-                // check if attacked holder holds a piece
+                // check if holder holds a piece
                 if Holders[hol_ID].piece_ID == 0 {
                     possibleHoldersIDs.append(hol_ID)
+                } else {
+                    break
                 }
             }
         }
@@ -505,6 +536,24 @@ class Game: ObservableObject {
         }
         PossibleMoves = verifiedHoldersIDs
 
+    }
+    
+    func showPossiblePiecesMoves2() -> Void {
+        let p_s = Pieces[ChosenPieceID-1].piece_state
+        switch p_s {
+        case .free, .threatened, .protects:
+            showPossiblePiecesMoves()
+            break
+        case .is_threatening, .is_pinning, .promotion, .gives_check, .en_passantable:
+            //no moves
+            break
+        case .in_check:
+            canSaveKing()
+            break
+        case .pinned, .double_check, .checkmate:
+            //no moves
+            break;
+        }
     }
     
     func showPossiblePiecesMoves() -> Void {
@@ -713,16 +762,31 @@ class Game: ObservableObject {
     }
     
     func showPossibleMoves2() -> Void {
-        if Pieces[ChosenPieceID-1].piece_type != .bPawn && Pieces[ChosenPieceID-1].piece_type != .wPawn {
-            //pass piece state to get possible moves
-            let p_state = Pieces[ChosenPieceID-1].piece_state
-            showPossiblePiecesMoves()
-        } else {
-            //pass pawn state to get possible moves
-            let p_state = Pieces[ChosenPieceID-1].piece_state
-            showPossiblePawnMoves()
+        if isProtecting(ChosenPieceID) && (Pieces[ChosenPieceID-1].piece_type == .bPawn || Pieces[ChosenPieceID-1].piece_type == .wPawn) {
+            let direction = PinDirection()
+            if getPieceMoves().contains(where: {$0.self == direction || $0.self == inv_dir(direction)}) {
+                if isPawn() {
+                    showPossiblePawnMoves()
+                } else {
+                    showPossiblePiecesMoves()
+                }
+            }
+        } else if isProtecting(ChosenPieceID) && (Pieces[ChosenPieceID-1].piece_type == .bPawn || Pieces[ChosenPieceID-1].piece_type == .wPawn) {
+            let direction = PinDirection()
+            if getPieceMoves().contains(where: {$0.self == direction || $0.self == inv_dir(direction)}) {
+                if isPawn() {
+                    showPossiblePawnMoves()
+                } else {
+                    showPossiblePiecesMoves()
+                }
+            }
+        } else if !isPinned(ChosenPieceID) {
+            if isPawn() {
+                showPossiblePawnMoves()
+            } else {
+                showPossiblePiecesMoves()
+            }
         }
-        
     }
     
     func hidePossibileMoves() -> Void {
