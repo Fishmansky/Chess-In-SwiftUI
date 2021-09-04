@@ -85,7 +85,7 @@ struct HolderView: View, Hashable {
         .onTapGesture {
             Game.ChosenHolder = id
             if(Game.isPicked){
-                Game.put()
+                Game.put2()
             }
         }
     }
@@ -101,25 +101,25 @@ struct PromotionView: View {
             VStack(alignment: .center, spacing: 5) {
                 Text("Promote to:")
                 Button(action: {
-                    Game.promoteTo(.Queen)
+                    Game.promoteTo2(.Queen)
                     Game.showPromotion.toggle()
                 }, label: {
                     Text("Queen")
                 })
                 Button(action: {
-                    Game.promoteTo(.Rook)
+                    Game.promoteTo2(.Rook)
                     Game.showPromotion.toggle()
                 }, label: {
                     Text("Rook")
                 })
                 Button(action: {
-                    Game.promoteTo(.Bishop)
+                    Game.promoteTo2(.Bishop)
                     Game.showPromotion.toggle()
                 }, label: {
                     Text("Bishop")
                 })
                 Button(action: {
-                    Game.promoteTo(.Knight)
+                    Game.promoteTo2(.Knight)
                     Game.showPromotion.toggle()
                 }, label: {
                     Text("Knight")
@@ -146,14 +146,14 @@ struct PieceView: View {
                         isTapped.toggle()
                         Game.ChosenPieceID = piece_ID
                         Game.isPicked = true
-                        Game.showPossibleMoves2()
+                        Game.showPossibleMoves3()
                     //if this piece is pickedshowPossibleMoves
                     } else if (Game.isPicked && Game.ChosenPieceID == self.piece_ID) {
                         isTapped = false
                         Game.isPicked = false
                         Game.hidePossibileMoves()
                     } else if (Game.isPicked && Game.ChosenPieceID != self.piece_ID) {
-                        Game.Attack(piece_ID)
+                        Game.Attack2(piece_ID)
                     }
                 }
             Text(piece_ID.description)
