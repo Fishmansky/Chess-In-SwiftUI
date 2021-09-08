@@ -109,16 +109,16 @@ class Game: ObservableObject {
             //put Piece on new Holder
             Holders[ChosenHolder].piece_ID = ChosenPieceID
             //pawn promotion check
-            //promotionCheck2()
-            //check for pins
+            promotionCheck2()
+            //create function to remove state from previously threatened pieces
+            resetRelations()
+            //check the position
             if Pieces[ChosenPieceID-1].piece_type == .Rook || Pieces[ChosenPieceID-1].piece_type == .Bishop || Pieces[ChosenPieceID-1].piece_type == .Queen {
                 PositionCheck()
             }
             //reset chosen Piece and holder
-            resetThreats()
             ChosenPieceID = 0
             ChosenHolder = 0
-            showNegativeIDHolders()
             isPicked = false
         }
     }
@@ -201,6 +201,13 @@ class Game: ObservableObject {
                 Pieces[x].piece_state = .free
             }
         }
+    }
+    
+    func resetRelations() -> Void {
+        for r in Pieces[ChosenPieceID-1].relations {
+            Pieces[r.0 - 1].removeRelation(ChosenPieceID)
+        }
+        Pieces[ChosenPieceID-1].clearRelations()
     }
     
     func isEnemyPawnPushMove(_ move: (Int, Int)) -> Bool {
@@ -440,9 +447,11 @@ class Game: ObservableObject {
                                 Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .threatened)
                                 Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .is_threatening)
                                 Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
+                                break
                             } else {
                                 Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
                                 Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
+                                break
                             }
                         }
                     }
@@ -782,7 +791,7 @@ class Game: ObservableObject {
         
     }
     
-    func PossiblePawnStateMoves() -> Void {
+    func PossiblePawnStateMoves_2() -> Void {
         let p_s = Pieces[ChosenPieceID-1].STATE()
         switch p_s {
         case .free, .threatened, .protects:
@@ -795,6 +804,24 @@ class Game: ObservableObject {
             canSaveKing()
             break
         case .pinned, .double_check, .checkmate:
+            //no moves
+            break;
+        }
+    }
+    
+    func PossiblePawnStateMoves() -> Void {
+        let p_s = Pieces[ChosenPieceID-1].STATE()
+        switch p_s {
+        case .free, .threatened, .protects:
+            showPossiblePawnMoves2()
+            break
+        case .is_threatening, .promotion, .gives_check, .en_passantable, .threat_both_ways:
+            showPossiblePawnMoves2()
+            break
+        case .in_check:
+            canSaveKing()
+            break
+        case .is_pinning, .pinned, .double_check, .checkmate:
             //no moves
             break;
         }
@@ -841,7 +868,6 @@ class Game: ObservableObject {
         for ID in possibleHoldersIDs {
             if(ID != 64 && Holders[ID].piece_ID == 0){
                 verifiedHoldersIDs.append(ID)
-                Holders[ID].piece_ID = -1
             }
         }
         return verifiedHoldersIDs
@@ -915,7 +941,7 @@ class Game: ObservableObject {
                     let mod = Pieces[ChosenPieceID-1].piece_type == .bPawn ? 1 : -1
                     let hol_ID2 = getHolderIDFromCoord(Coord(holderCoords.rank+move.0+mod, holderCoords.file+move.1))
                     let p_ID = Holders[hol_ID2].piece_ID
-                    if Holders[hol_ID2].piece_ID != 0 && Holders[hol_ID2].piece_ID != 999 {
+                    if Holders[hol_ID2].piece_ID > 0 && Holders[hol_ID2].piece_ID != 999 {
                         if Pieces[p_ID-1].isEnpassantable2() && isEnemyPieceOnHolder(hol_ID2){
                             possibleHoldersIDs.append(hol_ID)
                         }
@@ -946,10 +972,10 @@ class Game: ObservableObject {
         let p_s = Pieces[ChosenPieceID-1].STATE()
         switch p_s {
         case .free, .threatened, .protects:
-            showPossiblePiecesMoves2()
+            showPossiblePiecesMoves()
             break
         case .is_threatening, .is_pinning, .promotion, .gives_check, .en_passantable, .threat_both_ways:
-            showPossiblePiecesMoves2()
+            showPossiblePiecesMoves()
             break
         case .in_check:
             canSaveKing()
@@ -1037,7 +1063,6 @@ class Game: ObservableObject {
         for ID in possibleHoldersIDs {
             if(ID != 64 && Holders[ID].piece_ID == 0){
                 verifiedHoldersIDs.append(ID)
-                Holders[ID].piece_ID = -1
             }
         }
         return verifiedHoldersIDs
@@ -1139,8 +1164,8 @@ class Game: ObservableObject {
                         //check if it is an enemy's piece
                         if isEnemyPieceOnHolder(hol_ID) {
                             //set piece state as threatened
-                            Pieces[Holders[hol_ID].piece_ID - 1].addState([.threatened])
-                            asses_State2(.threatened)
+                            Pieces[Holders[hol_ID].piece_ID - 1].addRelation(ChosenPieceID, .is_threatening)
+                            Pieces[ChosenPieceID - 1].addRelation(Holders[hol_ID].piece_ID, .threatened)
                             break
                         } else {
                             break
@@ -1157,8 +1182,8 @@ class Game: ObservableObject {
                     //check if it is an enemy's piece
                     if isEnemyPieceOnHolder(hol_ID) {
                         //set piece state as threatened
-                        Pieces[Holders[hol_ID].piece_ID - 1].addState([.threatened])
-                        asses_State2(.threatened)
+                        Pieces[Holders[hol_ID].piece_ID - 1].addRelation(ChosenPieceID, .is_threatening)
+                        Pieces[ChosenPieceID - 1].addRelation(Holders[hol_ID].piece_ID, .threatened)
                     }
                 } else if Holders[hol_ID].piece_ID == 0{
                     possibleHoldersIDs.append(hol_ID)
@@ -1394,12 +1419,13 @@ class Piece: ObservableObject {
     private var Piece_type: PieceTypes
     private var Piece_state: PlayState = .free
     private var _state: [PlayState] = [.free]
-    private var relations: [(Int, PlayState)] = []
+    private var Relations: [(Int, PlayState)] = []
     
     public var id: Int { get { return ID } }
     public var color: Int { get { return COLOR } }
     public var piece_type: PieceTypes { get {return Piece_type} set {Piece_type = newValue } }
     public var piece_state: PlayState { get { return Piece_state} set { Piece_state = newValue } }
+    public var relations: [(Int, PlayState)] { get { return Relations } }
     
     init(_ i: Int,_ c: Int, _ p_t: PieceTypes){
         ID = i
@@ -1411,8 +1437,12 @@ class Piece: ObservableObject {
         return lhs.id == rhs.id
     }
     
+    func clearRelations() -> Void {
+        self.Relations = []
+    }
+    
     func getPieceRelation(_ p_ID: Int) -> PlayState {
-        if let rel = relations.first(where: {$0.0 == p_ID}) {
+        if let rel = Relations.first(where: {$0.0 == p_ID}) {
             return rel.1
         } else {
             return .checkmate
@@ -1420,22 +1450,22 @@ class Piece: ObservableObject {
     }
     
     func addRelation(_ p_ID: Int, _ p_s: PlayState) -> Void {
-        relations.append((p_ID, p_s))
+        Relations.append((p_ID, p_s))
     }
     
     func removeRelation(_ p_ID: Int) -> Void {
-        relations.removeAll(where: {$0.0 == p_ID})
+        Relations.removeAll(where: {$0.0 == p_ID})
     }
     
     func isThreatened() -> Bool {
-        if relations.contains(where: {$0.1 == .is_threatening}) {
+        if Relations.contains(where: {$0.1 == .is_threatening}) {
             return true
         }
         return false
     }
     
     func isPinned() -> Bool {
-        if relations.contains(where: {$0.1 == .is_pinning}) {
+        if Relations.contains(where: {$0.1 == .is_pinning}) {
             return true
         }
         return false
@@ -1443,7 +1473,7 @@ class Piece: ObservableObject {
     
     func isProtecting() -> Bool {
         let kingID = COLOR == 1 ? 5 : 29
-        if relations.contains(where: {$0.0 == kingID && $0.1 == .protects}) {
+        if Relations.contains(where: {$0.0 == kingID && $0.1 == .protects}) {
             return true
         }
         return false
@@ -1476,7 +1506,7 @@ class Piece: ObservableObject {
     }
     
     func notFree2() -> Void {
-        relations.removeAll(where: {$0.1 == .free })
+        Relations.removeAll(where: {$0.1 == .free })
     }
     
     func setState(_ s: [PlayState]) -> Void {
@@ -1497,7 +1527,7 @@ class Piece: ObservableObject {
     
     func isEnpassantable2() -> Bool {
         if self.piece_type == .wPawn || self.piece_type == .bPawn {
-            if relations.contains(where: {$0.1 == .en_passantable}){
+            if Relations.contains(where: {$0.1 == .en_passantable}){
                 return true
             }
         }
