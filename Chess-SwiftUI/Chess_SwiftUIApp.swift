@@ -57,7 +57,6 @@ class Game: ObservableObject {
     @Published var ChosenHolder = 0
     @Published var PossibleMoves = [Int]()
     @Published var showPromotion = false
-    @Published var ThreatsState: [(Int, Int)] = []
     
     //GAME LOGIC
     
@@ -92,6 +91,28 @@ class Game: ObservableObject {
             //reset chosen Piece and holder
             ChosenPieceID = 0
             ChosenHolder = 0
+            isPicked = false
+        }
+    }
+    
+    func Attack(_ p_ID: Int) -> Void {
+        if((isThreatened(p_ID) || isPinned(p_ID)) && isEnemyPiece(p_ID)){
+            //remove piece from its initial holder
+            Holders[getLocationByPieceID(ChosenPieceID)].piece_ID = 0
+            //update piece location in gamestate
+            GameState[ChosenPieceID-1] = getLocationByPieceID(p_ID)
+            //put piece on final holder
+            Holders[getLocationByPieceID(p_ID)].piece_ID = ChosenPieceID
+            //place the attacked piece on invisible holder
+            GameState[p_ID-1] = 999
+            promotionCheck()
+            resetRelations()
+            if Pieces[ChosenPieceID-1].piece_type == .Rook || Pieces[ChosenPieceID-1].piece_type == .Bishop || Pieces[ChosenPieceID-1].piece_type == .Queen {
+                PositionCheck()
+            }
+            ChosenPieceID = 0
+            ChosenHolder = 0
+            hidePossibileMoves()
             isPicked = false
         }
     }
@@ -194,7 +215,8 @@ class Game: ObservableObject {
         var enemyPieceOnLine = false
         var enemyPieceDistance = 0
         var enemyPieceHolderID = 64
-
+        
+        var myPieceOnLine = false
         
         var direction: (Int, Int) = (0,0)
         
@@ -231,6 +253,8 @@ class Game: ObservableObject {
                                 Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
                                 Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
                             }
+                        } else if !isEnemyPieceOnHolder(hol_ID) {
+                            break
                         }
                     }
                 } else {
@@ -247,6 +271,8 @@ class Game: ObservableObject {
                             Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
                             Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
                         }
+                    }  else if !isEnemyPieceOnHolder(hol_ID) {
+                        break
                     }
                 }
             }
@@ -258,7 +284,12 @@ class Game: ObservableObject {
                         let hol_ID = getHolderIDFromCoord(Coord(thisPieceCoords.rank+(direction.0*x), thisPieceCoords.file+(direction.1*x)))
                         // check if attacked holder holds enemy piece
                         if hol_ID != 64 && enemyPieceDistance < enemyKingDistance {
-                            if isEnemyPieceOnHolder(hol_ID) && !isEnemyKingOnHolder(hol_ID) {
+                            //CHECK WHY IT SHOWS UP AS TRUE WHEN THERE IS NO FRIENDLY PIECE ON LINE OF ATTACK
+                            if !isEnemyPieceOnHolder(hol_ID) {
+                                //look for your own pieces on line of attack
+                                myPieceOnLine = true
+                                break
+                            } else if isEnemyPieceOnHolder(hol_ID) && !isEnemyKingOnHolder(hol_ID) {
                                 enemyPieceDistance = x
                                 enemyPieceOnLine = true
                                 enemyPieceHolderID = hol_ID
@@ -270,8 +301,12 @@ class Game: ObservableObject {
                 } else {
                     for x in 1...8 {
                         let hol_ID = getHolderIDFromCoord(Coord(thisPieceCoords.rank+(move.0*x), thisPieceCoords.file+(move.1*x)))
-                        // check if attacked holder holds an enemys king
-                        if isEnemyPieceOnHolder(hol_ID) && !isEnemyKingOnHolder(hol_ID) {
+                        //look for your own pieces on line of attack
+                        if !isEnemyPieceOnHolder(hol_ID) {
+                            myPieceOnLine = true
+                            break
+                            // check if attacked holder holds an enemys piece
+                        } else if isEnemyPieceOnHolder(hol_ID) && !isEnemyKingOnHolder(hol_ID) {
                             //look for pieces that can attack your piece and set its state
                             if getAttackedHoldersOfPiece(Holders[hol_ID].piece_ID).contains(where: {$0 == thisPieceHolder}) {
                                 Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
@@ -289,10 +324,12 @@ class Game: ObservableObject {
                 }
             }
             //if there is no piece protecting the king then our piece is checking the king
-            if !enemyPieceOnLine{
+            if myPieceOnLine {
+                return
+            } else if !enemyPieceOnLine && !myPieceOnLine {
                 Pieces[getPieceIDByLocation(locId: enemyKingHolderID)-1].addRelation(ChosenPieceID, .gives_check)
                 Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyKingHolderID), .in_check)
-            } else {
+            } else if enemyPieceOnLine && !myPieceOnLine {
                 let enemyCanAttack = getAttackedHoldersOfPiece(getPieceIDByLocation(locId: enemyPieceHolderID)).contains(where: {$0 == thisPieceHolder})
                 let enemyCanMove = getSpecificPieceMoves(getPieceIDByLocation(locId: enemyPieceHolderID)).contains(where: {$0.self == direction || $0.self == inv_dir(direction)})
                 if enemyKingDistance > enemyPieceDistance {
@@ -302,6 +339,7 @@ class Game: ObservableObject {
                         Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyPieceHolderID), .threatened)
                     } else if enemyCanAttack {
                         //check if enemy can attack our piece
+                        Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(Holders[enemyKingHolderID].piece_ID, .protects)
                         Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(ChosenPieceID, .is_threatening)
                         Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(ChosenPieceID, .threatened)
                         Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyPieceHolderID), .is_threatening)
@@ -377,26 +415,6 @@ class Game: ObservableObject {
         } else if Pieces[ChosenPieceID-1].piece_type == .wPawn && Coordinates[getLocationByPieceID(ChosenPieceID)].rank ==  7 {
             Pieces[ChosenPieceID-1].addRelation(ChosenPieceID, .promotion)
             showPromotion = true
-        }
-    }
-    
-    func Attack(_ p_ID: Int) -> Void {
-        if((isThreatened(p_ID) || isPinned(p_ID)) && isEnemyPiece(p_ID)){
-            //remove piece from its initial holder
-            Holders[getLocationByPieceID(ChosenPieceID)].piece_ID = 0
-            //update piece location in gamestate
-            GameState[ChosenPieceID-1] = getLocationByPieceID(p_ID)
-            //put piece on final holder
-            Holders[getLocationByPieceID(p_ID)].piece_ID = ChosenPieceID
-            //place the attacked piece on invisible holder
-            GameState[p_ID-1] = 999
-            promotionCheck()
-            resetRelations()
-            PositionCheck()
-            ChosenPieceID = 0
-            ChosenHolder = 0
-            hidePossibileMoves()
-            isPicked = false
         }
     }
     
@@ -1080,12 +1098,11 @@ class Piece: ObservableObject {
         } else if isPinned() {
             return .is_pinning
         } else {
-            if isProtecting() {
+            if isProtecting() && !isThreatened() {
                 return .protects
-            } else if isThreatened() {
-                if isProtecting() {
-                    return .protects
-                }
+            } else if isProtecting() && isThreatened() {
+                return .protects
+            } else if !isProtecting() && isThreatened() {
                 return .is_threatening
             }
         }
