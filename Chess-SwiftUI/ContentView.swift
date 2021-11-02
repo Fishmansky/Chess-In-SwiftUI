@@ -13,6 +13,7 @@ struct Chessboard: View {
     
     var body: some View{
         VStack(alignment: .center, spacing: 0){
+            PlayerCounter(color: 0)
             ForEach(ranks.reversed(), id: \.self) { file in
                 HStack(alignment: .center, spacing: 0){
                     ForEach(files, id: \.self) { rank in
@@ -20,6 +21,7 @@ struct Chessboard: View {
                     }
                 }
             }
+            PlayerCounter(color: 1)
         }
         .border(Color.black, width: 1)
     }
@@ -55,6 +57,8 @@ struct HolderView: View, Hashable {
     @EnvironmentObject var Game: Game
     var id: Int
     var piece_ID: Int = 0
+    var highlight: Bool { Game.PossibleMoves.contains(id) ? true : false }
+    
     
     func hash(into hasher: inout Hasher)
     {
@@ -65,21 +69,17 @@ struct HolderView: View, Hashable {
     static func == (lhs: HolderView, rhs: HolderView) -> Bool {
         return lhs.id == rhs.id && lhs.piece_ID == rhs.piece_ID
     }
-    
+
     var body: some View {
         ZStack{
             Rectangle()
                 .foregroundColor(Color.white.opacity(0.01))
                 .frame(width: 46, height: 46)
-                .background(Color.white.opacity(0))
+                .background(highlight ? Color.red.opacity(0.5) : Color.white.opacity(0))
             Text(id.description)
                 .foregroundColor(.red).opacity(0.7)
             if(piece_ID > 0 ){
                 PieceView(piece_ID: piece_ID)
-            } else if (piece_ID == -1) {
-                Circle()
-                    .fill(Color.blue)
-                    .frame(width: 11, height: 11)
             }
         }
         .onTapGesture {
@@ -132,14 +132,50 @@ struct PromotionView: View {
     }
 }
 
+struct PlayerCounter: View {
+    @EnvironmentObject var Game: Game
+    var color: Int
+    var body: some View {
+        ZStack{
+            Capsule().foregroundColor(.white).border(/*@START_MENU_TOKEN@*/Color.black/*@END_MENU_TOKEN@*/, width: /*@START_MENU_TOKEN@*/1/*@END_MENU_TOKEN@*/)
+            HStack{
+                Text("PlayerName")
+                Text("Points: \( color == 1 ? Game.WPCounter : Game.BPCounter )")
+                
+            }
+        }.frame(width: 368, height: 60, alignment: .center)
+
+    }
+}
+
 struct PieceView: View {
     @EnvironmentObject var Game: Game
     @State var isTapped = false
     var piece_ID: Int
+    var imgName: String {
+        switch Game.Pieces[piece_ID-1].piece_type {
+        case .wPawn:
+            return "wp"
+        case .bPawn:
+            return "bp"
+        case .Bishop:
+            return Game.Pieces[piece_ID-1].color == 1 ? "wb" : "bb"
+        case .Knight:
+            return Game.Pieces[piece_ID-1].color == 1 ? "wkn" : "bkn"
+        case .Rook:
+            return Game.Pieces[piece_ID-1].color == 1 ? "wr" : "br"
+        case .Queen:
+            return  Game.Pieces[piece_ID-1].color == 1 ? "wq" : "bq"
+        case .King:
+            return Game.Pieces[piece_ID-1].color == 1 ? "wk" : "bk"
+        }
+    }
     var body: some View {
         ZStack{
-            Circle().frame(width: isTapped ? 42:36 , height: isTapped ? 42:36, alignment: .center)
-                .foregroundColor(Game.Pieces[piece_ID-1].color == 0 ? .green : .blue)
+//            Circle().frame(width: isTapped ? 42:36 , height: isTapped ? 42:36, alignment: .center)
+//                .foregroundColor(Game.Pieces[piece_ID-1].color == 0 ? .green : .blue)
+                Image(imgName).resizable()
+                    .scaledToFit().frame(width: isTapped ? 48:42 , height: isTapped ? 48:42, alignment: .center)
                 .onTapGesture {
                     //if there is no piece picked yet then pick this one
                     if(!Game.isPicked){
@@ -147,7 +183,7 @@ struct PieceView: View {
                         Game.ChosenPieceID = piece_ID
                         Game.isPicked = true
                         Game.showPossibleMoves()
-                    //if this piece is pickedshowPossibleMoves
+                    //if this piece is picked showPossibleMoves
                     } else if (Game.isPicked && Game.ChosenPieceID == self.piece_ID) {
                         isTapped = false
                         Game.isPicked = false
