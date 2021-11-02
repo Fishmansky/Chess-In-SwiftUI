@@ -123,9 +123,9 @@ class Game: ObservableObject {
             //put Piece on new Holder
             Holders[ChosenHolder].piece_ID = ChosenPieceID
             //pawn promotion check
-            promotionCheck()
+            promotionCheck(ChosenPieceID)
             //create function to remove state from previously threatened pieces
-            resetRelations()
+            //resetRelations()
             //check the position
             if Pieces[ChosenPieceID-1].piece_type == .Rook || Pieces[ChosenPieceID-1].piece_type == .Bishop || Pieces[ChosenPieceID-1].piece_type == .Queen {
                 PositionCheck()
@@ -153,8 +153,8 @@ class Game: ObservableObject {
             Holders[getLocationByPieceID(p_ID)].piece_ID = ChosenPieceID
             //place the attacked piece on invisible holder
             GameState[p_ID-1] = 999
-            promotionCheck()
-            resetRelations()
+            promotionCheck(ChosenPieceID)
+            //resetRelations()
             if Pieces[ChosenPieceID-1].piece_type == .Rook || Pieces[ChosenPieceID-1].piece_type == .Bishop || Pieces[ChosenPieceID-1].piece_type == .Queen {
                 PositionCheck()
             }
@@ -450,20 +450,21 @@ class Game: ObservableObject {
         return 999
     }
     
-    func promoteTo(_ p_T: PieceTypes) -> Void {
-        if getPromotedPawn() != 999 {
-            Pieces[getPromotedPawn()-1].piece_type = p_T
+    func promoteTo(_ to: PieceTypes) -> Void {
+        let p_ID = getPromotedPawn()
+        if p_ID != 999 {
+            Pieces[p_ID-1].piece_type = to
             //check position
             PositionCheck()
         }
     }
     
-    func promotionCheck() -> Void {
-        if Pieces[ChosenPieceID-1].piece_type == .bPawn && Coordinates[getLocationByPieceID(ChosenPieceID)].rank ==  0 {
-            Pieces[ChosenPieceID-1].addRelation(ChosenPieceID, .promotion)
+    func promotionCheck(_ p_ID: Int) -> Void {
+        if Pieces[p_ID-1].piece_type == .bPawn && Coordinates[getLocationByPieceID(p_ID)].rank ==  0 {
+            Pieces[p_ID-1].addRelation(p_ID, .promotion)
             showPromotion = true
-        } else if Pieces[ChosenPieceID-1].piece_type == .wPawn && Coordinates[getLocationByPieceID(ChosenPieceID)].rank ==  7 {
-            Pieces[ChosenPieceID-1].addRelation(ChosenPieceID, .promotion)
+        } else if Pieces[p_ID-1].piece_type == .wPawn && Coordinates[getLocationByPieceID(p_ID)].rank ==  7 {
+            Pieces[ChosenPieceID-1].addRelation(p_ID, .promotion)
             showPromotion = true
         }
     }
@@ -723,8 +724,6 @@ class Game: ObservableObject {
                 // check if holder holds a piece
                 if Holders[hol_ID].piece_ID == 0 && hol_ID != 64 {
                     possibleHoldersIDs.append(hol_ID)
-                } else {
-                    break
                 }
             }
         }

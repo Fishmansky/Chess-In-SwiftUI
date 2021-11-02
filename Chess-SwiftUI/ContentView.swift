@@ -93,7 +93,6 @@ struct HolderView: View, Hashable {
 
 struct PromotionView: View {
     @EnvironmentObject var Game: Game
-    
     var body: some View {
         ZStack {
             Color.gray.opacity(0.5)
@@ -203,7 +202,7 @@ struct PieceView: View {
 struct MovingView: View {
     @EnvironmentObject var Game: Game
     @State var showPromotion = false
-    
+    @State var promo_piece = 0
     var body: some View {
         VStack{
             Button(action: { Game.set() }, label: {
