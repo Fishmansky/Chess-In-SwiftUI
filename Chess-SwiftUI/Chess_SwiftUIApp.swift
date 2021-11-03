@@ -83,23 +83,40 @@ class Game: ObservableObject {
          48,49,50,51,52,53,54,55,
          56,57,58,59,60,61,62,63]
     
-    //Chosen piece ID
     @Published var ChosenPieceID: Int = 0
     @Published var isPicked = false
     @Published var ChosenHolder = 0
     @Published var PossibleMoves = [Int]()
     @Published var showPromotion = false
     
-    //GAME LOGIC
+    /*
+     This variable will hold all the relations between pieces that will help to assess the position
     
-    func GameStateAssessment(state: [Int]) -> Void {
-        for piece_ID in 0..<state.count {
-            //check if piece has been taken down
-            if state[piece_ID] != 999 {
-                
+     relation format: First Piece ID -> RELATION TO -> Second Piece ID
+     example:         QUEEN -> Pins -> PAWN
+     
+     */
+    @Published var PiecesRelations = [(Int,Relation,Int)]()
+    
+    
+    func addPieceRelation(_ p_ID: Int, _ relation: Relation, _ to_piece: Int) -> Void {
+        PiecesRelations.append((p_ID, relation, to_piece))
+    }
+    
+    func alterPieceRelation(_ p_1: Int,_ p_2: Int,_ to_relation: Relation) -> Void {
+        for index in 0..<PiecesRelations.count {
+            if PiecesRelations[index].0 == p_1 && PiecesRelations[index].2 == p_2{
+                PiecesRelations[index].1 = to_relation
             }
         }
     }
+    
+    func removePieceRelation(_ p_ID: Int, _ relation: Relation, _ to_piece: Int) -> Void {
+        PiecesRelations.removeAll(where: { $0.0 == p_ID })
+    }
+    
+    
+    //GAME LOGIC
     
     func set() -> Void {
         for index in 0..<GameState.count {
@@ -173,14 +190,6 @@ class Game: ObservableObject {
             }
         }
         return 0
-    }
-    
-    func addToCoord(_ piece_cord: (Int, Int),_ move: (Int, Int),_ mltp: Int = 1) -> Coord {
-        return Coord(piece_cord.0+(move.0*mltp), piece_cord.1+(move.1*mltp))
-    }
-    
-    func combineCoords(_ a: Coord,_ b: Coord) -> Coord {
-        return Coord(a.file+b.file, a.rank+b.rank)
     }
     
     func getHolderIDFromCoord(_ c: Coord) -> Int {
@@ -1528,9 +1537,9 @@ class Piece: ObservableObject {
         } else if isPinned() {
             return .is_pinning
         } else {
-            if isProtecting() && !isThreatened() {
+            if isProtecting() && isThreatened() {
                 return .protects
-            } else if isProtecting() && isThreatened() {
+            } else if isProtecting() && !isThreatened() {
                 return .protects
             } else if !isProtecting() && isThreatened() {
                 return .is_threatening
@@ -1598,6 +1607,15 @@ enum PlayState {
     case gives_check
     case double_check
     case checkmate
+}
+
+enum Relation {
+    case free
+    case threatens
+    case pins
+    case checks
+    case double_check
+    case checkmates
 }
 
 class Moves {
