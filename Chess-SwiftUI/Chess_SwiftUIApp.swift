@@ -142,7 +142,6 @@ class Game: ObservableObject {
     
     func getRelation(_ of: Int, _ to: Int) -> RelationType{
         
-        let myPieceHolderID = getLocationByPieceID(of)
         let thisPieceMoves = getSpecificPieceMoves(ChosenPieceID)
         let thisPieceCoords = getHolderCoordsByPiece(ChosenPieceID)
         
@@ -151,7 +150,7 @@ class Game: ObservableObject {
         let enemyPieceHolderID = getLocationByPieceID(to)
         
         var direction: (Int, Int) = (0,0)
-        
+                
         MOVES: for move in thisPieceMoves {
             for x in 1...8 {
                 if getHolderIDFromCoord(Coord(thisPieceCoords.rank+(move.0*x), thisPieceCoords.file+(move.1*x))) == 64{
@@ -165,10 +164,14 @@ class Game: ObservableObject {
                 }
             }
         }
-        //VERIFY FUNCTION TO GET HOLDERS ATTACKED BY ENEMY PIECES
-        let attackedholds = getAttackedHoldersOfPiece(getPieceIDByLocation(locId: enemyPieceHolderID))
-        let enemyCanAttack = getAttackedHoldersOfPiece(getPieceIDByLocation(locId: enemyPieceHolderID)).contains(where: {$0 == myPieceHolderID})
-        let enemyCanMove = getSpecificPieceMoves(getPieceIDByLocation(locId: enemyPieceHolderID)).contains(where: {$0.self == direction || $0.self == inv_dir(direction)})
+        
+        if to == enemyKingP_ID {
+            return RelationType.check
+        }
+        
+        //check if our piece can be attacked by given Piece
+        let enemyCanAttack = canCaptureMe(getPieceIDByLocation(locId: enemyPieceHolderID), of)
+        let enemyCanMove = canMoveOnLine(getPieceIDByLocation(locId: enemyPieceHolderID),direction)
         
         let enemyKingProtectingPieces = findProtectingPieces(enemyKingP_ID)
         
@@ -195,6 +198,120 @@ class Game: ObservableObject {
             }
         }
         return .none
+    }
+    
+    //checks if given piece can move
+    func canMoveOnLine(_ p_ID: Int,_ dir: (Int, Int)) -> Bool {
+        let moves = getPieceMovesFor(p_ID)
+        let p_cords = getHolderCoordsByPiece(p_ID)
+
+        let direction = dir
+        
+        if isPawn(p_ID){
+            MOVES: for move in moves {
+                if move == direction || move == inv_dir(direction) {
+                    //check if Pawn is not attacking
+                    if (move.1 == 0){
+                        if getHolderIDFromCoord(Coord(p_cords.rank+move.0, p_cords.file+move.1)) == 64 {
+                            continue MOVES
+                        } else {
+                            let hol_ID = getHolderIDFromCoord(Coord(p_cords.rank+move.0, p_cords.file+move.1))
+                            // check if attacked holder holds a piece
+                            if Holders[hol_ID].piece_ID == 0 {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                    }
+                } else {
+                    continue MOVES
+                }
+            }
+        } else {
+            //check other type of pieces
+            MOVES: for move in moves {
+                if move == direction || move == inv_dir(direction) {
+                    if moveMultiplier() {
+                        for x in 1...8 {
+                            if getHolderIDFromCoord(Coord(p_cords.rank+(move.0*x), p_cords.file+(move.1*x))) == 64{
+                                continue MOVES
+                            } else {
+                                let hol_ID = getHolderIDFromCoord(Coord(p_cords.rank+(move.0*x), p_cords.file+(move.1*x)))
+                                // check if attacked holder holds a piece
+                                if Holders[hol_ID].piece_ID == 0 {
+                                    return true
+                                } else {
+                                    return false
+                                }
+                            }
+                        }
+                    } else {
+                        if getHolderIDFromCoord(Coord(p_cords.rank+(move.0), p_cords.file+(move.1))) == 64{
+                            continue MOVES
+                        } else {
+                            let hol_ID = getHolderIDFromCoord(Coord(p_cords.rank+(move.0), p_cords.file+(move.1)))
+                            if Holders[hol_ID].piece_ID == 0 {
+                                return true
+                            } else {
+                                return false
+                            }
+                        }
+                    }
+                } else {
+                    continue MOVES
+                }
+            }
+        }
+        return false
+    }
+    
+    //checks if given piece can attack our piece
+    func canCaptureMe(_ p_ID: Int, _ px_ID: Int) -> Bool {
+        let moves = getPieceMovesFor(p_ID)
+        let p_cords = getHolderCoordsByPiece(p_ID)
+                
+        if isPawn(p_ID){
+            MOVES: for move in moves {
+                //check if Pawn is using attack move
+                if (move.1 != 0){
+                    if getHolderIDFromCoord(Coord(p_cords.rank+move.0, p_cords.file+move.1)) == 64 {
+                        continue MOVES
+                    }
+                    let hol_ID = getHolderIDFromCoord(Coord(p_cords.rank+move.0, p_cords.file+move.1))
+                    // check if attacked holder holds a piece
+                    if Holders[hol_ID].piece_ID == px_ID {
+                        return true
+                    }
+                }
+            }
+        } else {
+            //check other type of pieces
+            MOVES: for move in moves {
+                if moveMultiplier() {
+                    for x in 1...8 {
+                        if getHolderIDFromCoord(Coord(p_cords.rank+(move.0*x), p_cords.file+(move.1*x))) == 64{
+                            continue MOVES
+                        } else {
+                            let hol_ID = getHolderIDFromCoord(Coord(p_cords.rank+(move.0*x), p_cords.file+(move.1*x)))
+                            if Holders[hol_ID].piece_ID == px_ID {
+                                return true
+                            }
+                        }
+                    }
+                } else {
+                    if getHolderIDFromCoord(Coord(p_cords.rank+(move.0), p_cords.file+(move.1))) == 64{
+                        continue MOVES
+                    } else {
+                        let hol_ID = getHolderIDFromCoord(Coord(p_cords.rank+(move.0), p_cords.file+(move.1)))
+                        if Holders[hol_ID].piece_ID == px_ID {
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+        return false
     }
     
     func ProtectionDirection(_ of: Int) -> (Int, Int) {
@@ -227,11 +344,16 @@ class Game: ObservableObject {
         let kings = [5,29]
         
         for king in kings {
+            
+            let protectors = findProtectingPieces(king)
+            for pr in protectors {
+                removePieceRelation(pr, .protects, king)
+            }
             let kingCoords = getHolderCoordsByPiece(king)
             
             MOVES: for move in Moves.queen {
                 for x in 1...8 {
-                    if getHolderIDFromCoord(Coord(kingCoords.rank+(move.0*x), kingCoords.file+(move.1*x))) == 64{
+                    if getHolderIDFromCoord(Coord(kingCoords.rank+(move.0*x), kingCoords.file+(move.1*x))) == 64 {
                         continue MOVES
                     } else {
                         let hol_ID = getHolderIDFromCoord(Coord(kingCoords.rank+(move.0*x), kingCoords.file+(move.1*x)))
@@ -240,6 +362,8 @@ class Game: ObservableObject {
                                 addPieceRelation(getPieceIDByLocation(locId: hol_ID), .protects, king)
                                 continue MOVES
                             }
+                        } else if Holders[hol_ID].piece_ID == 0 {
+                            break
                         }
                     }
                 }
@@ -325,9 +449,10 @@ class Game: ObservableObject {
             //create function to remove state from previously threatened pieces
             resetRelations()
             //check the position
-            if Pieces[ChosenPieceID-1].piece_type == .Rook || Pieces[ChosenPieceID-1].piece_type == .Bishop || Pieces[ChosenPieceID-1].piece_type == .Queen {
-                PositionCheck2()
-            }
+            PositionCheck3()
+//            if Pieces[ChosenPieceID-1].piece_type == .Rook || Pieces[ChosenPieceID-1].piece_type == .Bishop || Pieces[ChosenPieceID-1].piece_type == .Queen {
+//                PositionCheck3()
+//            }
             //reset chosen Piece and holder
             ChosenPieceID = 0
             ChosenHolder = 0
@@ -354,7 +479,7 @@ class Game: ObservableObject {
             promotionCheck()
             resetRelations()
             if Pieces[ChosenPieceID-1].piece_type == .Rook || Pieces[ChosenPieceID-1].piece_type == .Bishop || Pieces[ChosenPieceID-1].piece_type == .Queen {
-                PositionCheck2()
+                PositionCheck3()
             }
             ChosenPieceID = 0
             ChosenHolder = 0
@@ -624,7 +749,6 @@ class Game: ObservableObject {
         
         var enemyKingOnLine = false
         var enemyKingDistance = 0
-        var enemyKingHolderID = 64
         
         var enemyPieceOnLine = false
         var enemyPieceDistance = 0
@@ -644,7 +768,6 @@ class Game: ObservableObject {
                 } else if isEnemyKingOnHolder(hol_ID) {
                     enemyKingDistance = x
                     enemyKingOnLine = true
-                    enemyKingHolderID = hol_ID
                     direction = move
                     break
                 }
@@ -664,17 +787,9 @@ class Game: ObservableObject {
                         if isEnemyPieceOnHolder(hol_ID) && !isEnemyKingOnHolder(hol_ID) {
                             //look for pieces that can attack your piece and set its state
                             if getAttackedHoldersOfPiece(Holders[hol_ID].piece_ID).contains(where: {$0 == thisPieceHolder}) {
-//                                Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
-//                                Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .threatened)
-//                                Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .is_threatening)
-//                                Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
-                                
                                 setRelation(ChosenPieceID, getPieceIDByLocation(locId: hol_ID))
                                 break
                             } else {
-//                                Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
-//                                Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
-                                
                                 setRelation(ChosenPieceID, getPieceIDByLocation(locId: hol_ID))
                                 break
                             }
@@ -688,16 +803,8 @@ class Game: ObservableObject {
                     if isEnemyPieceOnHolder(hol_ID) && !isEnemyKingOnHolder(hol_ID) && hol_ID != 64 {
                         //look for pieces that can attack your piece and set its state
                         if getAttackedHoldersOfPiece(Holders[hol_ID].piece_ID).contains(where: {$0 == thisPieceHolder}) {
-//                            Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
-//                            Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .threatened)
-//                            Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .is_threatening)
-//                            Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
-                            
                             setRelation(ChosenPieceID, getPieceIDByLocation(locId: hol_ID))
                         } else {
-//                            Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
-//                            Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
-                            
                             setRelation(ChosenPieceID, getPieceIDByLocation(locId: hol_ID))
                         }
                     }  else if !isEnemyPieceOnHolder(hol_ID) {
@@ -739,18 +846,10 @@ class Game: ObservableObject {
                         } else if isEnemyPieceOnHolder(hol_ID) && !isEnemyKingOnHolder(hol_ID) {
                             //look for pieces that can attack your piece and set its state
                             if getAttackedHoldersOfPiece(Holders[hol_ID].piece_ID).contains(where: {$0 == thisPieceHolder}) {
-//                                Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
-//                                Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .threatened)
-//                                Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .is_threatening)
-//                                Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
-                                
                                 setRelation(ChosenPieceID, getPieceIDByLocation(locId: hol_ID))
                                 break
                             } else {
                                 //if they cannot attack nor move
-//                                Pieces[getPieceIDByLocation(locId: hol_ID)-1].addRelation(ChosenPieceID, .is_threatening)
-//                                Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: hol_ID), .threatened)
-                                
                                 setRelation(ChosenPieceID, getPieceIDByLocation(locId: hol_ID))
                                 break
                             }
@@ -762,38 +861,22 @@ class Game: ObservableObject {
             if myPieceOnLine {
                 return
             } else if !enemyPieceOnLine && !myPieceOnLine {
-//                Pieces[getPieceIDByLocation(locId: enemyKingHolderID)-1].addRelation(ChosenPieceID, .gives_check)
-//                Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyKingHolderID), .in_check)
+                setRelation(ChosenPieceID, getPieceIDByLocation(locId: enemyPieceHolderID))
             } else if enemyPieceOnLine && !myPieceOnLine {
-                let enemyCanAttack = getAttackedHoldersOfPiece(getPieceIDByLocation(locId: enemyPieceHolderID)).contains(where: {$0 == thisPieceHolder})
-                let enemyCanMove = getSpecificPieceMoves(getPieceIDByLocation(locId: enemyPieceHolderID)).contains(where: {$0.self == direction || $0.self == inv_dir(direction)})
+                let enemyCanAttack = canCaptureMe(getPieceIDByLocation(locId: enemyPieceHolderID), ChosenPieceID)
+                let enemyCanMove = canMoveOnLine(getPieceIDByLocation(locId: enemyPieceHolderID), direction)
                 if enemyKingDistance > enemyPieceDistance {
                     //if there is a piece protecting the king check if it can move on the line of attack
                     if enemyCanMove && !enemyCanAttack {
-//                        Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(Holders[enemyKingHolderID].piece_ID, .protects)
-//                        Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyPieceHolderID), .threatened)
-//
                         setRelation(ChosenPieceID, getPieceIDByLocation(locId: enemyPieceHolderID))
                     } else if enemyCanMove && enemyCanAttack {
                         //check if enemy can attack our piece
-//                        Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(Holders[enemyKingHolderID].piece_ID, .protects)
-//                        Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(ChosenPieceID, .is_threatening)
-//                        Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(ChosenPieceID, .threatened)
-//                        Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyPieceHolderID), .is_threatening)
-//                        Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyPieceHolderID), .threatened)
-                        
                         setRelation(ChosenPieceID, getPieceIDByLocation(locId: enemyPieceHolderID))
                     } else if !enemyCanMove && !enemyCanAttack {
                         //if if cannot move nor attack our piece then its pinned
-//                        Pieces[getPieceIDByLocation(locId: enemyPieceHolderID)-1].addRelation(ChosenPieceID, .is_pinning)
-//                        Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyPieceHolderID), .pinned)
-                        
                         setRelation(ChosenPieceID, getPieceIDByLocation(locId: enemyPieceHolderID))
                     }
                 } else {
-//                    Pieces[getPieceIDByLocation(locId: enemyKingHolderID)-1].addRelation(ChosenPieceID, .gives_check)
-//                    Pieces[ChosenPieceID-1].addRelation(getPieceIDByLocation(locId: enemyKingHolderID), .in_check)
-                    
                     setRelation(ChosenPieceID, getPieceIDByLocation(locId: enemyPieceHolderID))
                 }
             }
@@ -808,13 +891,19 @@ class Game: ObservableObject {
         //check if piece is pointing in any way at enemys king
         MOVES: for move in thisPieceMoves {
             for x in 1...8 {
-                let hol_ID = getHolderIDFromCoord(Coord(thisPieceCoords.rank+(move.0*x), thisPieceCoords.file+(move.1*x)))
-                // check if attacked holder holds an enemys king
-                if hol_ID == 64 {
+                if getHolderIDFromCoord(Coord(thisPieceCoords.rank+(move.0*x), thisPieceCoords.file+(move.1*x))) == 64 {
                     continue MOVES
                 } else {
-                    setRelation(ChosenPieceID, Holders[hol_ID].piece_ID)
-                    break
+                    let hol_ID = getHolderIDFromCoord(Coord(thisPieceCoords.rank+(move.0*x), thisPieceCoords.file+(move.1*x)))
+                    
+                    if Holders[hol_ID].piece_ID > 0 {
+                        if isEnemyPiece(Holders[hol_ID].piece_ID) {
+                            setRelation(ChosenPieceID, Holders[hol_ID].piece_ID)
+                            continue MOVES
+                        } else if !isEnemyPiece(Holders[hol_ID].piece_ID) {
+                            continue MOVES
+                        }
+                    }
                 }
             }
         }
@@ -995,7 +1084,7 @@ class Game: ObservableObject {
         if Pieces[p_ID-1].piece_type == .bPawn || Pieces[p_ID-1].piece_type == .wPawn {
             return getPossiblePawnMoves(p_ID)
         } else {
-            return getPossiblePiecesMoves(p_ID)
+            return getPossiblePiecesMoves2(p_ID)
         }
     }
     
@@ -1088,6 +1177,33 @@ class Game: ObservableObject {
             }
         case .bPawn:
             if getHolderCoordsByPiece(ChosenPieceID).rank > 5 {
+                return Moves.bpawn+[(-2,0)]
+            } else {
+                return Moves.bpawn
+            }
+        case .Knight:
+            return Moves.knight
+        case .Bishop:
+            return Moves.bishop
+        case .Rook:
+            return Moves.rook
+        case .Queen:
+            return Moves.queen
+        case .King:
+            return Moves.king
+        }
+    }
+    
+    func getPieceMovesFor(_ p_ID: Int) -> [(Int,Int)] {
+        switch Pieces[p_ID-1].piece_type {
+        case .wPawn:
+            if getHolderCoordsByPiece(p_ID).rank < 2 {
+                return Moves.wpawn+[(2,0)]
+            } else {
+                return Moves.wpawn
+            }
+        case .bPawn:
+            if getHolderCoordsByPiece(p_ID).rank > 5 {
                 return Moves.bpawn+[(-2,0)]
             } else {
                 return Moves.bpawn
@@ -1267,49 +1383,55 @@ class Game: ObservableObject {
     }
     
     func getPossiblePawnMoves(_ p_ID: Int) -> [Int] {
-        let moves = getSpecificPieceMoves(p_ID)
-        let holderCoords = getHolderCoordsByPiece(ChosenPieceID)
+        let moves = getPieceMovesFor(p_ID)
+        let holderCoords = getHolderCoordsByPiece(p_ID)
         var possibleHoldersIDs: [Int] = []
-        for move in moves {
+        MOVES: for move in moves {
             //check if Pawn is using attack move
             if (move.1 != 0){
-                let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
-                // check if attacked holder holds a piece
-                if Holders[hol_ID].piece_ID != 0 && Holders[hol_ID].piece_ID != 999 && hol_ID != 64 {
-                    //check if it is an enemy's piece
-                    if isEnemyPieceOnHolder(hol_ID) {
-                        //add piece holderID to possible moves
-                        possibleHoldersIDs.append(hol_ID)
-                    }
-                    //check for en_passantable pawns
-                } else if Holders[hol_ID].piece_ID == 0 && hol_ID != 64 {
-                    let mod = Pieces[ChosenPieceID-1].piece_type == .bPawn ? 1 : -1
-                    let hol_ID2 = getHolderIDFromCoord(Coord(holderCoords.rank+move.0+mod, holderCoords.file+move.1))
-                    let p_ID = Holders[hol_ID2].piece_ID
-                    if Holders[hol_ID2].piece_ID != 0 && Holders[hol_ID2].piece_ID != 999 && hol_ID2 != 64 {
-                        if Pieces[p_ID-1].piece_state == .en_passantable && isEnemyPieceOnHolder(hol_ID2){
+                if getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1)) == 64 {
+                    continue MOVES
+                } else {
+                    let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
+                    // check if attacked holder holds a piece
+                    if Holders[hol_ID].piece_ID != 0 && Holders[hol_ID].piece_ID != 999{
+                        //check if it is an enemy's piece
+                        if isEnemyPieceOnHolder(hol_ID) {
                             //add piece holderID to possible moves
                             possibleHoldersIDs.append(hol_ID)
+                        }
+                        //check for en_passantable pawns
+                    } else if Holders[hol_ID].piece_ID == 0 {
+                        let mod = Pieces[ChosenPieceID-1].piece_type == .bPawn ? 1 : -1
+                        if getHolderIDFromCoord(Coord(holderCoords.rank+move.0+mod, holderCoords.file+move.1)) == 64 {
+                            continue MOVES
+                        } else {
+                            let hol_ID2 = getHolderIDFromCoord(Coord(holderCoords.rank+move.0+mod, holderCoords.file+move.1))
+                            let p_ID = Holders[hol_ID2].piece_ID
+                            if Holders[hol_ID2].piece_ID != 0 && Holders[hol_ID2].piece_ID != 999 {
+                                if Pieces[p_ID-1].piece_state == .en_passantable && isEnemyPieceOnHolder(hol_ID2){
+                                    //add piece holderID to possible moves
+                                    possibleHoldersIDs.append(hol_ID)
+                                }
+                            }
                         }
                     }
                 }
             } else {
-                let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
-                // check if holder holds a piece
-                if Holders[hol_ID].piece_ID == 0 && hol_ID != 64 {
-                    //add piece holderID to possible moves
-                    possibleHoldersIDs.append(hol_ID)
+                if getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1)) == 64 {
+                    continue MOVES
                 } else {
-                    break
+                    let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
+                    // check if holder holds a piece
+                    if Holders[hol_ID].piece_ID == 0 {
+                        //add piece holderID to possible moves
+                        possibleHoldersIDs.append(hol_ID)
+                    } else {
+                        break
+                    }
                 }
             }
         }
-//        var verifiedHoldersIDs: [Int] = []
-//        for ID in possibleHoldersIDs {
-//            if(ID != 64 && Holders[ID].piece_ID == 0){
-//                verifiedHoldersIDs.append(ID)
-//            }
-//        }
         return possibleHoldersIDs
     }
     
@@ -1475,22 +1597,26 @@ class Game: ObservableObject {
         let moves = getSpecificPieceMoves(p_ID)
         let holderCoords = getHolderCoordsByPiece(p_ID)
         var possibleHoldersIDs: [Int] = []
-        for move in moves {
+        MOVES: for move in moves {
             if(moveMultiplier()){
                 for x in 1...8 {
-                    let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+(move.0*x), holderCoords.file+(move.1*x)))
-                    // check if attacked holder holds a piece
-                    if Holders[hol_ID].piece_ID != 0 && Holders[hol_ID].piece_ID != 999 && hol_ID != 64 {
-                        //check if it is an enemy's piece
-                        if isEnemyPieceOnHolder(hol_ID) {
-                            //add piece holderID to possible moves
+                    if getHolderIDFromCoord(Coord(holderCoords.rank+(move.0*x), holderCoords.file+(move.1*x))) == 64 {
+                        continue MOVES
+                    } else {
+                        let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+(move.0*x), holderCoords.file+(move.1*x)))
+                        // check if attacked holder holds a piece
+                        if Holders[hol_ID].piece_ID > 0 && Holders[hol_ID].piece_ID != 999{
+                            //check if it is an enemy's piece
+                            if isEnemyPieceOnHolder(hol_ID) {
+                                //add piece holderID to possible moves
+                                possibleHoldersIDs.append(hol_ID)
+                                break
+                            } else {
+                                break
+                            }
+                        } else if Holders[hol_ID].piece_ID == 0 && hol_ID != 64{
                             possibleHoldersIDs.append(hol_ID)
-                            break
-                        } else {
-                            break
                         }
-                    } else if Holders[hol_ID].piece_ID == 0 && hol_ID != 64{
-                        possibleHoldersIDs.append(hol_ID)
                     }
                 }
             } else {
