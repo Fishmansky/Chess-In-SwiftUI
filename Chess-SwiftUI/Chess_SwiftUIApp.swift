@@ -124,23 +124,12 @@ class Game: ObservableObject {
     }
     
     func isThreatened2(_ p_ID: Int) -> Bool {
-        return PiecesRelations.contains(where: {$0.2 == p_ID && ($0.1 == .capture_threat || $0.1 == .mutual_capture_threat || $0.1 == .pin_with_mutual_capture_threat) })
+        return PiecesRelations.contains(where: {$0.0 == ChosenPieceID  && $0.2 == p_ID && ($0.1 == .capture_threat || $0.1 == .mutual_capture_threat || $0.1 == .pin_with_mutual_capture_threat) })
     }
     
-    func Threatens2(_ p_ID: Int) -> Bool {
-        return PiecesRelations.contains(where: {$0.0 == p_ID && ($0.1 == .capture_threat || $0.1 == .mutual_capture_threat || $0.1 == .pin_with_mutual_capture_threat)})
-    }
-    
-    func isPinning2(_ p_ID: Int) -> Bool {
-        return PiecesRelations.contains(where: {$0.0 == p_ID && ($0.1 == .pin || $0.1 == .pin_with_movement_possibility || $0.1 == .pin_with_mutual_capture_threat)})
-    }
     
     func isPinned2(_ p_ID: Int) -> Bool {
-        return PiecesRelations.contains(where: {$0.2 == p_ID && ($0.1 == .pin || $0.1 == .pin_with_movement_possibility || $0.1 == .pin_with_mutual_capture_threat)})
-    }
-    
-    func isProtecting2(_ p_ID: Int) -> Bool {
-        return PiecesRelations.contains(where: {$0.2 == p_ID && $0.1 == .protects})
+        return PiecesRelations.contains(where: { $0.0 == ChosenPieceID  && $0.2 == p_ID && ($0.1 == .pin || $0.1 == .pin_with_movement_possibility || $0.1 == .pin_with_mutual_capture_threat)})
     }
     
     func isPromoting(_ p_ID: Int) -> Bool {
@@ -204,7 +193,7 @@ class Game: ObservableObject {
         //Relations coming FROM this piece
         let relsOf = findRelatedPieces(of: p_ID)
         for rel_piece in relsOf {
-            PiecesRelations.removeAll(where: { $0.0 == p_ID && $0.2 == rel_piece })
+            PiecesRelations.removeAll(where: { $0.0 == p_ID && $0.2 == rel_piece && $0.1 != .en_passant })
             if GameState[rel_piece-1] == 999 {
                 PiecesRelations.removeAll(where: { $0.0 == rel_piece })
             }
@@ -213,7 +202,8 @@ class Game: ObservableObject {
         //Relations set TO this Piece
         let relsTo = findPiecesRelated(to: p_ID)
         for rel_piece in relsTo {
-            resetRelationsOf(rel_piece)
+            PiecesRelations.removeAll(where: { $0.0 == rel_piece && $0.1 != .en_passant })
+            PiecesRelations.removeAll(where: { $0.2 == rel_piece && $0.1 != .en_passant })
             if GameState[rel_piece-1] != 999 {
                 PositionCheckFor(rel_piece)
             }
@@ -231,6 +221,7 @@ class Game: ObservableObject {
     }
     
     func setRelation(_ of: Int, _ to: Int) -> Void {
+        
         let rel = getRelation(of, to)
         if rel != .none && !relationExist(of,rel,to) {
             addPieceRelation(of,rel,to)
@@ -262,15 +253,13 @@ class Game: ObservableObject {
                 } else {
                     let hol_ID = getHolderIDFromCoord(Coord(thisPieceCoords.rank+move.0, thisPieceCoords.file+move.1))
                     if hol_ID == enemyPieceHolderID {
-                        direction = move
-                        iCanAttack = true
+                        if isProtected(Holders[hol_ID].piece_ID) {
+                            return .none
+                        } else {
+                            return .capture_threat
+                        }
                     }
                 }
-            }
-            if iCanAttack {
-                return Relation.capture_threat
-            } else {
-                return .none
             }
         }
         
@@ -632,6 +621,60 @@ class Game: ObservableObject {
         return true
     }
     
+    func isProtected(_ p_ID: Int) -> Bool {
+        let thisPieceCoords = getHolderCoordsByPiece(p_ID)
+                
+        var protectingPawns: [Int] = []
+        var protectingPieces: [Int] = []
+        //check if there any enemy piece that can attack this square all lines of attack
+        MOVES: for move in Moves.queen {
+            for x in 1...8 {
+                if getHolderIDFromCoord(Coord(thisPieceCoords.rank+(move.0*x), thisPieceCoords.file+(move.1*x))) == 64{
+                    continue MOVES
+                } else {
+                    let hol_ID = getHolderIDFromCoord(Coord(thisPieceCoords.rank+(move.0*x), thisPieceCoords.file+(move.1*x)))
+                    if Holders[hol_ID].piece_ID > 0 {
+                        if isEnemyPieceOnHolder(hol_ID) {
+                            let prot_piece = Holders[hol_ID].piece_ID
+                            //check for closest Pawns that aren't pinned and can protect this piece
+                            if x == 1 && isPawn(prot_piece){
+                                if move.1 != 0 && !isPinned2(prot_piece) {
+                                    protectingPawns.append(prot_piece)
+                                }
+                            } else {
+                                if canMoveOnLine(prot_piece, move){
+                                    protectingPieces.append(prot_piece)
+                                }
+                            }
+                            
+                        }
+                    }
+                }
+            }
+        }
+        
+        //check if there any knights that can attack this square
+        MOVES2: for move in Moves.knight {
+            if getHolderIDFromCoord(Coord(thisPieceCoords.rank+move.0, thisPieceCoords.file+move.1)) == 64 {
+                continue MOVES2
+            } else {
+                let hol_ID = getHolderIDFromCoord(Coord(thisPieceCoords.rank+move.0, thisPieceCoords.file+move.1))
+                if Holders[hol_ID].piece_ID > 0 {
+                    if isEnemyPieceOnHolder(hol_ID) {
+                        let prot_piece = Holders[hol_ID].piece_ID
+                        if Pieces[prot_piece-1].piece_type == .Knight && !isPinned2(prot_piece){
+                            protectingPieces.append(prot_piece)
+                        }
+                    }
+                }
+            }
+        }
+        if !protectingPawns.isEmpty || !protectingPieces.isEmpty {
+            return true
+        }
+        return false
+    }
+    
     func canSaveKing(_ p_ID: Int) -> Bool {
         //function should check if chosen piece can be moved to get king out of check like:
         // - putting piece on line of check
@@ -725,7 +768,6 @@ class Game: ObservableObject {
             //Piece ID = array index +1
             Holders[GameState[index]].piece_ID = index+1
         }
-        //CheckKingsProtection()
     }
     
     func put() -> Void {
@@ -746,7 +788,6 @@ class Game: ObservableObject {
             promotionCheck()
             //create function to remove state from previously threatened pieces
             verifyCurrentRelations(ChosenPieceID)
-            //CheckKingsProtection()
             //check the position
             PositionCheck()
             //reset chosen Piece and holder
@@ -772,9 +813,11 @@ class Game: ObservableObject {
             Holders[getLocationByPieceID(p_ID)].piece_ID = ChosenPieceID
             //place the attacked piece on invisible holder
             GameState[p_ID-1] = 999
+            
             promotionCheck()
+            
             verifyCurrentRelations(ChosenPieceID)
-            //CheckKingsProtection()
+            
             PositionCheck()
 
             ChosenPieceID = 0
@@ -979,7 +1022,8 @@ class Game: ObservableObject {
             //check if pawn is pushed two squares forward to set it state as en_passantable
             if (getHolderCoordsByPiece(ChosenPieceID).rank == 1 && Pieces[ChosenPieceID-1].piece_type == .wPawn) || ( getHolderCoordsByPiece(ChosenPieceID).rank == 6 && Pieces[ChosenPieceID-1].piece_type == .bPawn) {
                 if PossibleMoves.first != ChosenHolder {
-                    Pieces[ChosenPieceID-1].addRelation(ChosenPieceID, .en_passantable)
+                    //Pieces[ChosenPieceID-1].addRelation(ChosenPieceID, .en_passantable)
+                    addPieceRelation(ChosenPieceID, .en_passant , ChosenPieceID)
                 }
                 //check if en passant move is being played
             } else if (Coordinates[Holders[ChosenHolder].id].file != Coordinates[GameState[ChosenPieceID-1]].file){
@@ -987,7 +1031,7 @@ class Game: ObservableObject {
                 let hol_ID2 = getHolderIDFromCoord(Coord(Coordinates[Holders[ChosenHolder].id].rank+mod,Coordinates[Holders[ChosenHolder].id].file))
                 let p_ID = Holders[hol_ID2].piece_ID
                 if Holders[hol_ID2].piece_ID != 0 && Holders[hol_ID2].piece_ID != 999 && hol_ID2 != 64{
-                    if Pieces[p_ID-1].isEnpassantable() && isEnemyPieceOnHolder(hol_ID2){
+                    if isEnpassantable2(p_ID) && isEnemyPieceOnHolder(hol_ID2){
                         //remove pawn attacked by en passant
                         Holders[hol_ID2].piece_ID = 0
                         //update the attacked piece position in GameState, put it on invisible holder
@@ -996,6 +1040,10 @@ class Game: ObservableObject {
                 }
             }
         }
+    }
+    
+    func isEnpassantable2(_ p_ID: Int) -> Bool {
+        return PiecesRelations.contains(where: {$0.0 == p_ID && $0.1 == .en_passant && $0.2 == p_ID})
     }
     
     func getPawnToPromote() -> Int {
@@ -1258,7 +1306,7 @@ class Game: ObservableObject {
                     // check if attacked holder holds a piece
                     if Holders[hol_ID].piece_ID > 0 && Holders[hol_ID].piece_ID != 999 {
                         //check if it is an enemy's piece
-                        if isEnemyPieceOnHolder(hol_ID) {
+                        if isEnemyPieceOnHolder(hol_ID) && !isProtected(Holders[hol_ID].piece_ID) {
                             //set piece state as threatened
                             possibleHoldersIDs.append(hol_ID)
                         }
@@ -1276,7 +1324,7 @@ class Game: ObservableObject {
                     // check if attacked holder holds a piece
                     if Holders[hol_ID].piece_ID > 0 && Holders[hol_ID].piece_ID != 999 {
                         //check if it is an enemy's piece
-                        if isEnemyPieceOnHolder(hol_ID) {
+                        if isEnemyPieceOnHolder(hol_ID) && !isProtected(Holders[hol_ID].piece_ID){
                             //set piece state as threatened
                             possibleHoldersIDs.append(hol_ID)
                         }
@@ -1576,11 +1624,11 @@ class Game: ObservableObject {
         var possibleHoldersIDs: [Int] = []
         let piece_state = Assess(ChosenPieceID)
         if piece_state == .free {
-            for move in moves {
+            MOVES: for move in moves {
                 //check if Pawn is using attack move
                 if (move.1 != 0){
                     if getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1)) == 64 {
-                      break
+                      continue MOVES
                     } else {
                         let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
                         // check if attacked holder holds a piece
@@ -1595,17 +1643,21 @@ class Game: ObservableObject {
                             let hol_ID2 = getHolderIDFromCoord(Coord(holderCoords.rank+move.0+mod, holderCoords.file+move.1))
                             let p_ID = Holders[hol_ID2].piece_ID
                             if Holders[hol_ID2].piece_ID > 0 && Holders[hol_ID2].piece_ID != 999 && hol_ID2 != 64 {
-                                if Pieces[p_ID-1].isEnpassantable() && isEnemyPieceOnHolder(hol_ID2){
+                                if isEnpassantable2(p_ID) && isEnemyPieceOnHolder(hol_ID2){
                                     possibleHoldersIDs.append(hol_ID)
                                 }
                             }
                         }
                     }
                 } else {
-                    let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
-                    // check if holder holds a piece
-                    if Holders[hol_ID].piece_ID == 0 && hol_ID != 64 {
-                        possibleHoldersIDs.append(hol_ID)
+                    if getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1)) == 64 {
+                        continue MOVES
+                    } else {
+                        let hol_ID = getHolderIDFromCoord(Coord(holderCoords.rank+move.0, holderCoords.file+move.1))
+                        // check if holder holds a piece
+                        if Holders[hol_ID].piece_ID == 0 {
+                            possibleHoldersIDs.append(hol_ID)
+                        }
                     }
                 }
             }
@@ -1650,7 +1702,7 @@ class Game: ObservableObject {
                                 let hol_ID2 = getHolderIDFromCoord(Coord(holderCoords.rank+move.0+mod, holderCoords.file+move.1))
                                 let p_ID = Holders[hol_ID2].piece_ID
                                 if Holders[hol_ID2].piece_ID > 0 && Holders[hol_ID2].piece_ID != 999 && hol_ID2 != 64 {
-                                    if Pieces[p_ID-1].isEnpassantable() && isEnemyPieceOnHolder(hol_ID2){
+                                    if isEnpassantable2(p_ID) && isEnemyPieceOnHolder(hol_ID2){
                                         possibleHoldersIDs.append(hol_ID)
                                     }
                                 }
@@ -2097,6 +2149,7 @@ var RelationSign = [ Relation.capture_threat : "-->",
                      Relation.check : ">>x",
                      Relation.protects : "-|x",
                      Relation.promotion : "^^^",
+                     Relation.en_passant : "_^_",
                      Relation.none : "-X-"
 ]
 
@@ -2109,6 +2162,7 @@ enum Relation {
     case check
     case protects
     case promotion
+    case en_passant
     case none
 }
 
